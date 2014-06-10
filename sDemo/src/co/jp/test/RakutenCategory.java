@@ -1,13 +1,25 @@
 package src.co.jp.test;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Entities.EscapeMode;
 import org.jsoup.select.Elements;
+
+import com.orangesignal.csv.Csv;
+import com.orangesignal.csv.CsvConfig;
+import com.orangesignal.csv.handlers.BeanListHandler;
+import com.orangesignal.csv.manager.CsvManager;
+import com.orangesignal.csv.manager.CsvManagerFactory;
 
 public class RakutenCategory {
 	public static void main(String[] args) throws IOException{
@@ -58,6 +70,7 @@ public class RakutenCategory {
 	}
 	
 	private static void getItems(Document doc) throws IOException{
+		List<RakutenItem> list = new ArrayList<RakutenItem>();
 		Elements unitDivs = doc.select("#ratArea").select("div[data-ratunit=true]");
 		for(Element elm : unitDivs){
 			Elements itemTxts = elm.select("div.rsrSResultItemTxt>h2>a");
@@ -70,15 +83,15 @@ public class RakutenCategory {
 			for(Element elm2 : itemInfos){
 				rItem.price = elm2.ownText();
 			}
+			list.add(rItem);
 		}
+		(new File("output")).mkdirs();
+		CsvConfig csvCfg = new CsvConfig(',', '"', '"');
+		Csv.save(list, new File("output/"+String.valueOf((new Date()).getTime()) + "rakuten_item.csv"), csvCfg, new BeanListHandler<RakutenItem>(RakutenItem.class));
 	}
 }
 
 class RakutenItem{
-//		List<String[]> list1 = new ArrayList<String[]>();
-//			list1.add(new String[]{aHref, aTxt});
-//		(new File("output")).mkdirs();
-//		Csv.save(list, new File("output/"+String.valueOf((new Date()).getTime()) + "rakuten_cat.csv"), new CsvConfig(), new StringArrayListHandler());
 	String name = "";
 	String price = "";
 	String href = "";
