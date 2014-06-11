@@ -8,18 +8,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.nodes.Entities.EscapeMode;
 import org.jsoup.select.Elements;
 
 import com.orangesignal.csv.Csv;
 import com.orangesignal.csv.CsvConfig;
 import com.orangesignal.csv.handlers.BeanListHandler;
-import com.orangesignal.csv.manager.CsvManager;
-import com.orangesignal.csv.manager.CsvManagerFactory;
 
 public class RakutenCategory {
 	public static void main(String[] args) throws IOException{
@@ -46,26 +43,25 @@ public class RakutenCategory {
 				
 //				System.out.println("href : " + aHref1 + ",text : " + aTxt1);
 
-				getCat(aHref1);
+				getCatOrItems(aHref1);
 			}
 		}
-		
-		
-		
-		
 	}
 	
-	private static void getCat(String href) throws IOException{
+	private static void getCatOrItems(String href) throws IOException{
 		Document doc = Jsoup.connect(href).get();
 		Elements elems = doc.select("#rsrGenre").select("li.down.bold>ul>li>a");
 		if(elems.size()>0){
 			for(Element elm : elems){
 				String aHref = elm.attr("href");
 				
-				getCat(aHref);
+				getCatOrItems(aHref);
 			}
 		}else{
 			getItems(doc);
+//			(new File("output")).mkdirs();
+//			CsvConfig csvCfg = new CsvConfig(',', '"', '"');
+//			Csv.save(list, new File("output/"+String.valueOf((new Date()).getTime()) + "rakuten_item.csv"), csvCfg, new BeanListHandler<RakutenItem>(RakutenItem.class));
 		}
 	}
 	
@@ -88,6 +84,18 @@ public class RakutenCategory {
 		(new File("output")).mkdirs();
 		CsvConfig csvCfg = new CsvConfig(',', '"', '"');
 		Csv.save(list, new File("output/"+String.valueOf((new Date()).getTime()) + "rakuten_item.csv"), csvCfg, new BeanListHandler<RakutenItem>(RakutenItem.class));
+		
+		String nextHref = doc.select("#rsrPagerSect").select("div.rsrPagination>span.thisPage").first().nextElementSibling().attr("href");
+		if(StringUtils.isNoneEmpty(nextHref)){
+			Document _doc = Jsoup.connect(nextHref).get();
+			if(_doc != null){
+				try{
+					getItems(_doc);
+				}catch(Exception e){
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 }
 
