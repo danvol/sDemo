@@ -11,7 +11,6 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -24,31 +23,29 @@ import com.orangesignal.csv.handlers.BeanListHandler;
 
 public class RakutenCategoryScrap {
 	
-	private static Set<String> alreadyScrapedCat = new TreeSet<String>();
+	private static Set<String> ALREADY_SCRAPED_CAT = new TreeSet<String>();
+	private static String START = "http://directory.rakuten.co.jp/";
 	
 	public static void main(String[] args) throws IOException{
 //		System.setProperty("http.proxyHost", "172.16.64.10");
 //		System.setProperty("http.proxyPort", "12080");
 		
-		Document doc = Jsoup.connect("http://directory.rakuten.co.jp/")
-				.userAgent("Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0")
-				.referrer("http://www.google.com")
-				.get();
+		Document doc = CommonUtils.getDoc(START);
 		Elements elems = doc.select("td[bgcolor=#BF0000]").select("b>a");
 		for(Element elm : elems){
 			String aHref = elm.attr("href"); // level0カテゴリのhref(ジャンル)
 			
-			if(ArrayUtils.contains(CommonUtils.SKIP_LIST, aHref)){
+			if(ArrayUtils.contains(CommonUtils.SKIP_LIST_RAKUTEN, aHref)){
 				continue;
 			}
 			
-			Document doc1 = CommonUtils.getDoc(aHref);
+			Document doc1 = CommonUtils.getDoc(aHref, START);
 			Elements elems1 = doc1.select("#sc_lidAdd_xc").select("li.riFtBd>a");
 			List<RakutenCat> catList = new ArrayList<RakutenCat>();
 			for(Element elm1 : elems1){
 				String aHref1 = elm1.attr("href"); // level1カテゴリのhref(商品)
 				
-				if(alreadyScrapedCat.contains(CommonUtils.getCatCodeFromUri(aHref1))) {
+				if(ALREADY_SCRAPED_CAT.contains(CommonUtils.getCatCodeFromUriRakuten(aHref1))) {
 					System.out.println("すでに処理済。" + aHref1);
 					continue;
 				}
@@ -69,7 +66,7 @@ public class RakutenCategoryScrap {
 	
 	private static List<RakutenCat> getCatOrItems(String href) throws IOException{
 		List<RakutenCat> catList = new ArrayList<RakutenCat>();
-		Document doc = CommonUtils.getDoc(href);
+		Document doc = CommonUtils.getDoc(href, START);
 		if(doc==null){
 			System.out.println("最大リトライ回数に足したため、処理を終了。");
 			System.exit(0);
@@ -79,7 +76,7 @@ public class RakutenCategoryScrap {
 		if(elems.size()>0){
 			for(Element elm : elems){
 				String aHref = elm.attr("href");
-				if(alreadyScrapedCat.contains(CommonUtils.getCatCodeFromUri(aHref))) {
+				if(ALREADY_SCRAPED_CAT.contains(CommonUtils.getCatCodeFromUriRakuten(aHref))) {
 					System.out.println("すでに処理済。" + aHref);
 					continue;
 				}
@@ -119,7 +116,7 @@ public class RakutenCategoryScrap {
 		int level = 0;
 		for(Element cat : cats){
 			String catHref = cat.attr("href");
-			Matcher m = CommonUtils.regexCat.matcher(catHref);
+			Matcher m = CommonUtils.REGEX_CAT_RAKUTEN.matcher(catHref);
 			if(m.find()){
 				RakutenCat rCat = new RakutenCat();
 				rCat.name = URLDecoder.decode(m.group(1), "UTF-8");
@@ -131,7 +128,7 @@ public class RakutenCategoryScrap {
 			}
 		}
 		if(catList.size()>0){
-			Matcher m = CommonUtils.regexCat.matcher(doc.baseUri());
+			Matcher m = CommonUtils.REGEX_CAT_RAKUTEN.matcher(doc.baseUri());
 			if(m.find()){
 				// 現在表示中のカテゴリを取得
 				RakutenCat rCat = new RakutenCat();
@@ -141,14 +138,9 @@ public class RakutenCategoryScrap {
 				rCat.titlePath = titlePath.text();
 				rCat.href = doc.baseUri();
 				catList.add(rCat);
-				alreadyScrapedCat.add(rCat.code);
+				ALREADY_SCRAPED_CAT.add(rCat.code);
 			}
 		}
 		return catList;
 	}
-}
-
-class RakutenCatEx{
-	RakutenCat parentCat = null;
-	RakutenCat cat = null;
 }

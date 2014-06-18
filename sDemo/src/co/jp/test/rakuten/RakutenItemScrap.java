@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -21,26 +20,24 @@ import com.orangesignal.csv.handlers.BeanListHandler;
 
 public class RakutenItemScrap {
 	
-	private static Set<String> alreadyScrapedCat = new TreeSet<String>();
+	private static Set<String> ALREADY_SCRAPED_CAT = new TreeSet<String>();
+	private static String START = "http://directory.rakuten.co.jp/";
 	
 	public static void main(String[] args) throws IOException{
 //		System.setProperty("http.proxyHost", "172.16.64.10");
 //		System.setProperty("http.proxyPort", "12080");
 		
-		Document doc = Jsoup.connect("http://directory.rakuten.co.jp/")
-				.userAgent("Mozilla/5.0 (Windows NT 5.1; rv:31.0) Gecko/20100101 Firefox/31.0")
-				.referrer("http://www.google.com")
-				.get();
+		Document doc = CommonUtils.getDoc(START);
 		Elements elems = doc.select("td[bgcolor=#BF0000]").select("b>a");
 		for(Element elm : elems){
 			String aHref = elm.attr("href"); // level0カテゴリのhref(ジャンル)
 			
-			Document doc1 = CommonUtils.getDoc(aHref);
+			Document doc1 = CommonUtils.getDoc(aHref, START);
 			Elements elems1 = doc1.select("#sc_lidAdd_xc").select("li.riFtBd>a");
 			for(Element elm1 : elems1){
 				String aHref1 = elm1.attr("href"); // level1カテゴリのhref(商品)
 				
-				if(alreadyScrapedCat.contains(CommonUtils.getCatCodeFromUri(aHref1))) {
+				if(ALREADY_SCRAPED_CAT.contains(CommonUtils.getCatCodeFromUriRakuten(aHref1))) {
 					System.out.println("すでに処理済。" + aHref1);
 					continue;
 				}
@@ -50,7 +47,7 @@ public class RakutenItemScrap {
 	}
 	
 	private static void getCatOrItems(String href) throws IOException{
-		Document doc = CommonUtils.getDoc(href);
+		Document doc = CommonUtils.getDoc(href, START);
 		if(doc==null){
 			System.out.println("最大リトライ回数に足したため、処理を終了。");
 			System.exit(0);
@@ -60,7 +57,7 @@ public class RakutenItemScrap {
 		if(elems.size()>0){
 			for(Element elm : elems){
 				String aHref = elm.attr("href");
-				if(alreadyScrapedCat.contains(CommonUtils.getCatCodeFromUri(aHref))) {
+				if(ALREADY_SCRAPED_CAT.contains(CommonUtils.getCatCodeFromUriRakuten(aHref))) {
 					System.out.println("すでに処理済。" + aHref);
 					continue;
 				}
@@ -71,7 +68,7 @@ public class RakutenItemScrap {
 				getCatOrItems(aHref);
 			}
 		}else{
-			alreadyScrapedCat.add(CommonUtils.getCatCodeFromUri(doc.baseUri()));
+			ALREADY_SCRAPED_CAT.add(CommonUtils.getCatCodeFromUriRakuten(doc.baseUri()));
 			List<RakutenItem> itemList = new ArrayList<RakutenItem>();
 			Element thisPageElm = doc.select("#rsrPagerSect").select("div.rsrPagination>span.thisPage").first();
 			while(thisPageElm!=null) {
@@ -105,6 +102,15 @@ public class RakutenItemScrap {
 				}
 			}
 			
+			if(!itemList.isEmpty()){
+				// 収集したデータをファイルに書き込む
+				(new File("output")).mkdirs();
+				String fileName = "output/"+String.valueOf((new Date()).getTime()) + "rakuten_item.csv";
+				CsvConfig csvCfg = new CsvConfig(',', '"', '"');
+				Csv.save(itemList, new File(fileName), csvCfg, new BeanListHandler<RakutenItem>(RakutenItem.class));
+				System.out.println("[fileName] "+ fileName);
+				itemList = new ArrayList<RakutenItem>();
+			}
 		}
 	}
 	
