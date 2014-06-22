@@ -1,8 +1,10 @@
 package src.co.jp.test.montbell;
 
-public class MontbellItem {
-	String name = "";
-	String price = "";
-	String description = "";
-	String href = "";
+import src.co.jp.test.Item;
+
+public class MontbellItem extends Item {
+//	String name = "";
+//	String price = "";
+//	String description = "";
+//	String href = "";
 }
